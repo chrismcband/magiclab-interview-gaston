@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import axios from "axios";
 import axiosRetry from "axios-retry";
@@ -15,15 +15,30 @@ const buildURLbyId = id => {
     ? `https://magiclab-twitter-interview.herokuapp.com/gaston-rampersad/api`
     : `https://magiclab-twitter-interview.herokuapp.com/gaston-rampersad/api?count=${ITEM_COUNT}&afterId=${id}`;
 };
+// /api?count=X&beforeId=ID
+const buildBottomOfPageURLbyId = id =>
+  `https://magiclab-twitter-interview.herokuapp.com/gaston-rampersad/api?count=${ITEM_COUNT}&beforeId=${id}`;
+
+const isBottomOfPage = scrollValue => {
+  const pageHeight = document.body.scrollHeight;
+  const scrollPoint = window.scrollY + window.innerHeight;
+
+  console.log(scrollPoint >= pageHeight);
+  return scrollPoint >= pageHeight ? true : false;
+};
 
 function App() {
   const [data, setData] = useState([]);
   const [id, setId] = useState(0);
+  const [scroll, setScroll] = useState(0);
+  const intervalRef = useRef();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const url = buildURLbyId(id);
+        const url = isBottomOfPage(scroll)
+          ? buildBottomOfPageURLbyId(id)
+          : buildURLbyId(id);
         const result = await axios(url);
 
         const mergedData = [...data, ...result.data];
@@ -34,14 +49,26 @@ function App() {
     };
 
     fetchData();
-  }, [id]);
+  }, [id, scroll]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setId(data[0].id);
     }, 2000);
+    intervalRef.current = interval;
+
+    if (scroll > 0) clearInterval(interval);
     return () => clearInterval(interval);
-  }, [data]);
+  }, [data, scroll]);
+
+  useEffect(() => {
+    const scrollHandler = event => {
+      setScroll(window.pageYOffset);
+    };
+    window.addEventListener("scroll", scrollHandler);
+
+    return () => window.removeEventListener("scroll", scrollHandler);
+  }, [scroll]);
 
   return (
     <div className="App">
